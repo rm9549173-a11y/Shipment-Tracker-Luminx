@@ -1,0 +1,725 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Shipment Tracker</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #f4f3ef;
+    --surface: #ffffff;
+    --surface2: #f9f8f5;
+    --border: #e5e3db;
+    --border2: #d0cdc3;
+    --text: #1a1917;
+    --text2: #6b6860;
+    --text3: #9e9b94;
+    --accent: #1a1917;
+    --blue: #1d4ed8;
+    --blue-bg: #eff6ff;
+    --blue-text: #1e40af;
+    --green-bg: #f0fdf4;
+    --green-text: #166534;
+    --amber-bg: #fffbeb;
+    --amber-text: #92400e;
+    --red-bg: #fef2f2;
+    --red-text: #991b1b;
+    --gray-bg: #f9f8f5;
+    --gray-text: #44403c;
+    --radius: 10px;
+    --radius-sm: 6px;
+    --shadow: 0 1px 3px rgba(0,0,0,.08), 0 1px 2px rgba(0,0,0,.04);
+    --shadow-md: 0 4px 12px rgba(0,0,0,.1);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; font-size: 14px; }
+
+  /* HEADER */
+  .header { background: var(--text); color: #fff; padding: 0 2rem; display: flex; align-items: center; justify-content: space-between; height: 56px; position: sticky; top: 0; z-index: 100; }
+  .header-logo { display: flex; align-items: center; gap: 10px; font-size: 15px; font-weight: 600; letter-spacing: -.3px; }
+  .header-logo svg { opacity: .85; }
+  .header-meta { font-size: 12px; color: rgba(255,255,255,.5); font-family: 'DM Mono', monospace; }
+
+  /* UPLOAD ZONE */
+  .upload-wrap { max-width: 640px; margin: 4rem auto; padding: 0 1.5rem; }
+  .upload-zone { border: 2px dashed var(--border2); border-radius: 16px; background: var(--surface); padding: 3.5rem 2rem; text-align: center; cursor: pointer; transition: border-color .2s, background .2s; }
+  .upload-zone:hover, .upload-zone.drag { border-color: var(--text); background: var(--surface2); }
+  .upload-zone input { display: none; }
+  .upload-icon { width: 52px; height: 52px; background: var(--bg); border-radius: 12px; display: flex; align-items: center; justify-content: center; margin: 0 auto 1.25rem; }
+  .upload-title { font-size: 17px; font-weight: 600; margin-bottom: .4rem; }
+  .upload-sub { color: var(--text2); font-size: 13px; }
+  .upload-formats { display: flex; gap: 8px; justify-content: center; margin-top: 1.25rem; flex-wrap: wrap; }
+  .fmt-badge { background: var(--bg); border: 1px solid var(--border); border-radius: 20px; padding: 3px 12px; font-size: 11px; font-family: 'DM Mono', monospace; color: var(--text2); font-weight: 500; }
+
+  /* DASHBOARD */
+  .dashboard { display: none; padding: 1.5rem 2rem; max-width: 1600px; margin: 0 auto; }
+
+  /* STATS */
+  .stats-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; margin-bottom: 1.5rem; }
+  .stat-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 1rem 1.25rem; box-shadow: var(--shadow); }
+  .stat-label { font-size: 11px; color: var(--text3); font-weight: 500; text-transform: uppercase; letter-spacing: .6px; margin-bottom: 6px; }
+  .stat-val { font-size: 26px; font-weight: 600; letter-spacing: -1px; color: var(--text); }
+  .stat-val.green { color: #166534; }
+  .stat-val.red { color: #991b1b; }
+  .stat-val.amber { color: #92400e; }
+  .stat-val.blue { color: #1e40af; }
+  .stat-val.purple { color: #6b21a8; }
+
+  /* CONTROLS */
+  .controls { display: flex; gap: 10px; margin-bottom: 1.25rem; flex-wrap: wrap; align-items: center; }
+  .search-box { flex: 1; min-width: 200px; max-width: 340px; padding: 8px 14px 8px 36px; border: 1px solid var(--border2); border-radius: var(--radius-sm); background: var(--surface); font-family: 'DM Sans', sans-serif; font-size: 13px; color: var(--text); outline: none; position: relative; }
+  .search-wrap { position: relative; flex: 1; min-width: 200px; max-width: 340px; }
+  .search-wrap svg { position: absolute; left: 11px; top: 50%; transform: translateY(-50%); color: var(--text3); }
+  .search-wrap input { width: 100%; padding: 8px 14px 8px 34px; border: 1px solid var(--border2); border-radius: var(--radius-sm); font-family: 'DM Sans', sans-serif; font-size: 13px; color: var(--text); outline: none; background: var(--surface); }
+  .search-wrap input:focus { border-color: var(--text); }
+  select { padding: 8px 12px; border: 1px solid var(--border2); border-radius: var(--radius-sm); font-family: 'DM Sans', sans-serif; font-size: 13px; color: var(--text); background: var(--surface); outline: none; cursor: pointer; }
+  select:focus { border-color: var(--text); }
+  .btn { padding: 8px 16px; border-radius: var(--radius-sm); border: 1px solid var(--border2); background: var(--surface); font-family: 'DM Sans', sans-serif; font-size: 13px; color: var(--text); cursor: pointer; display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; font-weight: 500; transition: background .15s; }
+  .btn:hover { background: var(--bg); }
+  .btn.dark { background: var(--text); color: #fff; border-color: var(--text); }
+  .btn.dark:hover { opacity: .88; }
+  .controls-right { margin-left: auto; display: flex; gap: 8px; }
+  .row-count { font-size: 12px; color: var(--text3); font-family: 'DM Mono', monospace; align-self: center; }
+
+  /* TABLE */
+  .table-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow); overflow-x: auto; max-height: calc(100vh - 280px); overflow-y: auto; }
+  .table-scroll { min-width: 100%; }
+  table { width: 100%; border-collapse: separate; border-spacing: 0; font-size: 13px; }
+  thead { position: sticky; top: 0; z-index: 20; }
+  th { background: var(--surface2); border-bottom: 2px solid var(--border2); border-top: none; padding: 11px 12px; text-align: left; font-size: 11px; font-weight: 600; color: var(--text2); white-space: nowrap; text-transform: uppercase; letter-spacing: .5px; cursor: pointer; user-select: none; position: sticky; top: 0; }
+  th:first-child { border-radius: var(--radius) 0 0 0; }
+  th:last-child { border-radius: 0 var(--radius) 0 0; }
+  th:hover { color: var(--text); background: #ededea; }
+  th .sort-arrow { margin-left: 4px; opacity: .35; font-size: 10px; }
+  th.sorted .sort-arrow { opacity: 1; color: var(--text); }
+  td { padding: 9px 12px; border-bottom: 1px solid var(--border); color: var(--text); vertical-align: middle; white-space: nowrap; max-width: 180px; overflow: hidden; text-overflow: ellipsis; }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: #faf9f6; }
+  td.mono { font-family: 'DM Mono', monospace; font-size: 12px; }
+
+  /* ROW COLOURS BY STATUS */
+  tr.row-delivered td        { background: #e6f4ea; }
+  tr.row-delivered:hover td  { background: #ceebd5; }
+  tr.row-pickedup td         { background: #f2fbe8; }
+  tr.row-pickedup:hover td   { background: #e2f6ce; }
+  tr.row-notpickup td        { background: #fde8e8; }
+  tr.row-notpickup:hover td  { background: #fbd0d0; }
+  tr.row-transit td          { background: #fefce6; }
+  tr.row-transit:hover td    { background: #fdf6c0; }
+  tr.row-delay td            { background: #fde8e8; }
+  tr.row-delay:hover td      { background: #fbd0d0; }
+  tr.row-outdelivery td      { background: #f5f5f5; }
+  tr.row-outdelivery:hover td{ background: #ebebeb; }
+  tr.row-rtodel td           { background: #fde8e8; }
+  tr.row-rtodel:hover td     { background: #fbd0d0; }
+  tr.row-self td             { background: #f5f5f5; }
+  tr.row-self:hover td       { background: #ebebeb; }
+  tr.row-cancelled td        { background: #fce8e8; }
+  tr.row-cancelled:hover td  { background: #f9cece; }
+  tr.row-rtoinit td          { background: #e8eefe; }
+  tr.row-rtoinit:hover td    { background: #d0dcfd; }
+  tr.row-refunded td         { background: #f0e8fc; }
+  tr.row-refunded:hover td   { background: #e2d0fa; }
+
+  /* BADGES */
+  .badge { display: inline-block; padding: 3px 9px; border-radius: 20px; font-size: 11px; font-weight: 600; white-space: nowrap; }
+  .badge-delivered { background: var(--green-bg); color: var(--green-text); }
+  .badge-transit { background: var(--blue-bg); color: var(--blue-text); }
+  .badge-pending { background: var(--amber-bg); color: var(--amber-text); }
+  .badge-rto { background: var(--red-bg); color: var(--red-text); }
+  .badge-other { background: var(--gray-bg); color: var(--gray-text); }
+
+  /* TRACK LINK */
+  .track-btn { display: inline-flex; align-items: center; gap: 5px; padding: 4px 10px; border-radius: var(--radius-sm); background: var(--blue-bg); color: var(--blue-text); font-size: 12px; font-weight: 500; text-decoration: none; border: 1px solid #bfdbfe; transition: background .15s; }
+  .track-btn:hover { background: #dbeafe; }
+  .copy-link { display: inline-flex; align-items: center; gap: 4px; padding: 4px 8px; border-radius: var(--radius-sm); background: transparent; border: 1px solid var(--border2); color: var(--text2); font-size: 11px; cursor: pointer; margin-left: 4px; transition: background .15s; font-family: 'DM Sans', sans-serif; }
+  .copy-link:hover { background: var(--bg); color: var(--text); }
+  .no-awb { color: var(--text3); font-size: 12px; }
+
+  /* COURIER MAP PANEL */
+  .courier-panel { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 1rem 1.25rem; margin-bottom: 1.25rem; box-shadow: var(--shadow); }
+  .courier-panel-title { font-size: 12px; font-weight: 600; color: var(--text2); text-transform: uppercase; letter-spacing: .5px; margin-bottom: .75rem; display: flex; align-items: center; gap: 6px; }
+  .courier-rows { display: grid; grid-template-columns: repeat(auto-fill, minmax(380px, 1fr)); gap: 8px; }
+  .courier-row { display: flex; align-items: center; gap: 8px; }
+  .courier-name { font-size: 12px; font-weight: 500; min-width: 110px; color: var(--text); }
+  .courier-url-input { flex: 1; padding: 6px 10px; border: 1px solid var(--border2); border-radius: var(--radius-sm); font-family: 'DM Mono', monospace; font-size: 11px; color: var(--text); background: var(--bg); outline: none; }
+  .courier-url-input:focus { border-color: var(--text); background: var(--surface); }
+
+  /* TOAST */
+  .toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(60px); background: var(--text); color: #fff; padding: 10px 20px; border-radius: 8px; font-size: 13px; font-weight: 500; opacity: 0; transition: all .25s; z-index: 999; pointer-events: none; }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  /* EMPTY */
+  .empty-msg { text-align: center; padding: 4rem 2rem; color: var(--text3); font-size: 13px; }
+
+  /* NEW FILE BTN */
+  .new-file-area { padding: 1rem 2rem; display: none; align-items: center; gap: 10px; }
+
+  @media(max-width: 600px) {
+    .dashboard { padding: 1rem; }
+    .stats-row { grid-template-columns: repeat(2, 1fr); }
+    .controls-right { margin-left: 0; }
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-logo">
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="3" width="15" height="13" rx="2"/><path d="M16 8h4l3 5v3h-7V8z"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>
+    Shipment Tracker
+  </div>
+  <span class="header-meta" id="headerMeta">Upload a file to begin</span>
+</div>
+
+<!-- UPLOAD -->
+<div class="upload-wrap" id="uploadWrap">
+  <div class="upload-zone" id="dropZone" onclick="document.getElementById('fileInput').click()">
+    <input type="file" id="fileInput" accept=".xlsx,.xls,.csv">
+    <div class="upload-icon">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+    </div>
+    <div class="upload-title">Drop your shipment file here</div>
+    <div class="upload-sub">or click to browse</div>
+    <div class="upload-formats">
+      <span class="fmt-badge">.xlsx</span>
+      <span class="fmt-badge">.xls</span>
+      <span class="fmt-badge">.csv</span>
+    </div>
+  </div>
+</div>
+
+<!-- NEW FILE BUTTON (shown after load) -->
+<div class="new-file-area" id="newFileArea">
+  <button class="btn" onclick="document.getElementById('fileInput2').click()">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+    Load new file
+  </button>
+  <input type="file" id="fileInput2" accept=".xlsx,.xls,.csv" style="display:none">
+</div>
+
+<!-- DASHBOARD -->
+<div class="dashboard" id="dashboard">
+  <div class="stats-row" id="statsRow"></div>
+
+  <div class="courier-panel" id="courierPanel" style="display:none">
+    <div class="courier-panel-title">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+      Courier tracking URL templates &nbsp;<span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--text3)">— use {awb} as AWB placeholder</span>
+    </div>
+    <div class="courier-rows" id="courierRows"></div>
+  </div>
+
+  <div class="controls">
+    <div class="search-wrap">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      <input type="text" id="searchBox" placeholder="Search order ID, customer, AWB…" oninput="applyFilters()">
+    </div>
+    <select id="statusFilter" onchange="applyFilters()">
+      <option value="">All statuses</option>
+      <option value="DELIVERED">✅ Delivered</option>
+      <option value="PICKED UP">📦 Picked Up</option>
+      <option value="NOT PICKUP">🚫 Not Pickup</option>
+      <option value="IN TRANSIT">🚚 In Transit</option>
+      <option value="DELAY">⏱ Delay</option>
+      <option value="Out for delivery">🛵 Out for Delivery</option>
+      <option value="RTO delivered">↩ RTO Delivered</option>
+      <option value="Self">🏠 Self</option>
+      <option value="canceled">❌ Canceled</option>
+      <option value="RTO Initiated">🔄 RTO Initiated</option>
+      <option value="Refunded">💰 Refunded</option>
+    </select>
+    <select id="courierFilter" onchange="applyFilters()">
+      <option value="">All couriers</option>
+    </select>
+    <select id="platformFilter" onchange="applyFilters()">
+      <option value="">All platforms</option>
+    </select>
+    <span class="row-count" id="rowCount"></span>
+    <div class="controls-right">
+      <button class="btn" onclick="exportCSV()">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        Export Excel
+      </button>
+    </div>
+  </div>
+
+  <div class="table-card">
+    <table id="mainTable">
+      <thead><tr id="thead"></tr></thead>
+      <tbody id="tbody"></tbody>
+    </table>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ── COURIER TRACKING TEMPLATES ──────────────────────────────────────────────
+const COURIER_TEMPLATES = {
+  'delhivery':        'https://www.delhivery.com/track/package/{awb}',
+  'dtdc':             'https://tracking.dtdc.com/ctbs-tracking/customerInterface.tr?submitBtn=true&cnNo={awb}',
+  'bluedart':         'https://www.bluedart.com/tracking/{awb}',
+  'blue dart':        'https://www.bluedart.com/tracking/{awb}',
+  'ekart':            'https://ekartlogistics.com/shipmenttrack/{awb}',
+  'xpressbees':       'https://www.xpressbees.com/shipment/tracking/?awb={awb}',
+  'shadowfax':        'https://tracker.shadowfax.in/?awbno={awb}',
+  'ecom express':     'https://ecomexpress.in/tracking/?awb_field={awb}',
+  'ecomexpress':      'https://ecomexpress.in/tracking/?awb_field={awb}',
+  'amazon':           'https://track.amazon.in/tracking/{awb}',
+  'amazon logistics': 'https://track.amazon.in/tracking/{awb}',
+  'shiprocket':       'https://shiprocket.co/tracking/{awb}',
+  'fedex':            'https://www.fedex.com/fedextrack/?tracknumbers={awb}',
+  'dhl':              'https://www.dhl.com/en/express/tracking.html?AWB={awb}',
+  'professional courier': 'https://www.tpcindia.com/tracking.aspx?id={awb}&type=0&service=0',
+  'tpc':              'https://www.tpcindia.com/tracking.aspx?id={awb}&type=0&service=0',
+  'india post':       'https://www.indiapost.gov.in/_layouts/15/dop.portal.tracking/trackconsignment.aspx',
+  'speed post':       'https://www.indiapost.gov.in/_layouts/15/dop.portal.tracking/trackconsignment.aspx',
+  'gati':             'https://www.gati.com/wps/portal/tracking?GRef={awb}',
+  'safexpress':       'https://www.safexpress.com/tracking/?cn={awb}',
+  'smartr':           'https://smartr.in/track/{awb}',
+  'pickrr':           'https://track.pickrr.com/{awb}',
+  'nimbuspost':       'https://nimbuspost.com/tracking/{awb}',
+};
+
+// ── COLUMN MAPPING ──────────────────────────────────────────────────────────
+const COL_MAP = {
+  'shipment status': 'status', 'status': 'status',
+  'platform': 'platform',
+  'company gst': 'gst', 'gst': 'gst',
+  'order date': 'order_date',
+  'pickup date': 'pickup_date',
+  'dispatch date': 'dispatch_date',
+  'edd delivery date': 'edd', 'edd': 'edd', 'expected delivery': 'edd',
+  'delivered date': 'delivered_date', 'delivery date': 'delivered_date',
+  'order id': 'order_id', 'orderid': 'order_id', 'order no': 'order_id', 'order number': 'order_id',
+  'customer name': 'customer', 'name': 'customer',
+  'party address': 'address', 'address': 'address', 'ship to': 'address',
+  'ship from state': 'ship_from', 'origin state': 'ship_from',
+  'place of supply': 'place_of_supply', 'destination state': 'place_of_supply',
+  'item name': 'item', 'product': 'item', 'item': 'item',
+  'quantity': 'qty', 'qty': 'qty',
+  'courier partner': 'courier', 'courier': 'courier', 'logistics partner': 'courier',
+  'awb no.': 'awb', 'awb no': 'awb', 'awb': 'awb', 'tracking number': 'awb', 'tracking no': 'awb',
+  'note': 'note', 'notes': 'note', 'remarks': 'note',
+  'live status': 'live_status',
+  'last updated': 'last_updated',
+  'delivery time in days': 'del_days', 'delivery time': 'del_days', 'del. days': 'del_days', 'days': 'del_days',
+};
+
+// Display columns config
+const DISPLAY_COLS = [
+  { key: 'status',        label: 'Status',       width: 120 },
+  { key: 'order_id',      label: 'Order ID',     width: 120 },
+  { key: 'order_date',    label: 'Order Date',   width: 100 },
+  { key: 'customer',      label: 'Customer',     width: 130 },
+  { key: 'platform',      label: 'Platform',     width: 100 },
+  { key: 'item',          label: 'Item',         width: 140 },
+  { key: 'qty',           label: 'Qty',          width: 55  },
+  { key: 'courier',       label: 'Courier',      width: 110 },
+  { key: 'awb',           label: 'AWB No.',      width: 130 },
+  { key: 'dispatch_date', label: 'Dispatch',     width: 100 },
+  { key: 'edd',           label: 'EDD',          width: 100 },
+  { key: 'delivered_date',label: 'Delivered',    width: 100 },
+  { key: 'del_days',      label: 'Days',         width: 60  },
+  { key: 'live_status',   label: 'Live Status',  width: 130 },
+  { key: 'ship_from',     label: 'From State',   width: 110 },
+  { key: 'place_of_supply',label:'Ship To',      width: 110 },
+  { key: 'address',       label: 'Address',      width: 160 },
+  { key: 'gst',           label: 'GST',          width: 150 },
+  { key: 'note',          label: 'Note',         width: 130 },
+  { key: 'last_updated',  label: 'Last Updated', width: 110 },
+  { key: 'track',         label: 'Track',        width: 160 },
+];
+
+let allRows = [];
+let courierUrls = { ...COURIER_TEMPLATES };
+let sortCol = null, sortDir = 1;
+
+// ── FILE HANDLING ────────────────────────────────────────────────────────────
+function setupDropZone() {
+  const dz = document.getElementById('dropZone');
+  dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('drag'); });
+  dz.addEventListener('dragleave', () => dz.classList.remove('drag'));
+  dz.addEventListener('drop', e => { e.preventDefault(); dz.classList.remove('drag'); handleFile(e.dataTransfer.files[0]); });
+  document.getElementById('fileInput').addEventListener('change', e => { if (e.target.files[0]) handleFile(e.target.files[0]); });
+  document.getElementById('fileInput2').addEventListener('change', e => { if (e.target.files[0]) handleFile(e.target.files[0]); });
+}
+
+function handleFile(file) {
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const wb = XLSX.read(e.target.result, { type: 'binary', cellDates: true });
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const raw = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
+      processData(raw, file.name);
+    } catch (err) {
+      alert('Could not read file: ' + err.message);
+    }
+  };
+  reader.readAsBinaryString(file);
+}
+
+function processData(raw, filename) {
+  if (raw.length < 2) { alert('File appears empty or has no data rows.'); return; }
+  const header = raw[0].map(h => (h + '').trim().toLowerCase());
+  const colIdx = {};
+  header.forEach((h, i) => { const mapped = COL_MAP[h]; if (mapped && colIdx[mapped] === undefined) colIdx[mapped] = i; });
+
+  // store raw numeric values for date cols to compute delivery days
+  const dateColKeys = new Set(['order_date','pickup_date','dispatch_date','edd','delivered_date','last_updated']);
+
+  allRows = raw.slice(1).filter(r => r.some(c => (c + '').trim())).map(row => {
+    const r = {};
+    const rawDates = {}; // key -> JS Date object for calculation
+    Object.entries(colIdx).forEach(([key, idx]) => {
+      let val = row[idx];
+      if (val instanceof Date) {
+        if (dateColKeys.has(key)) rawDates[key] = val;
+        val = val.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+      } else if (typeof val === 'number' && dateColKeys.has(key) && val > 1000) {
+        // Excel serial date number
+        const d = new Date(Math.round((val - 25569) * 86400 * 1000));
+        rawDates[key] = d;
+        val = d.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+      }
+      r[key] = (val + '').trim();
+    });
+
+    // Fix del_days: if it looks like a date string or is 0/blank, compute from dates
+    const rawDel = r.del_days || '';
+    const numVal = parseFloat(rawDel);
+    const looksLikeDate = /[a-zA-Z]/.test(rawDel) || (numVal > 999);
+    if (!rawDel || looksLikeDate || isNaN(numVal)) {
+      // try to compute from delivered_date - order_date
+      let d1 = rawDates['order_date'];
+      let d2 = rawDates['delivered_date'];
+      // fallback: parse from string
+      if (!d1 && r.order_date) d1 = parseIndianDate(r.order_date);
+      if (!d2 && r.delivered_date) d2 = parseIndianDate(r.delivered_date);
+      if (d1 && d2 && d2 > d1) {
+        r.del_days = String(Math.round((d2 - d1) / 86400000));
+      } else {
+        r.del_days = '';
+      }
+    }
+
+    // fallback: if nothing mapped, use positional
+    if (Object.keys(colIdx).length < 3) {
+      const keys2 = ['status','platform','gst','order_date','pickup_date','dispatch_date','edd','delivered_date','order_id','customer','address','ship_from','place_of_supply','item','qty','courier','awb','note','live_status','last_updated','del_days'];
+      row.forEach((v, i) => { if (keys2[i]) r[keys2[i]] = (v + '').trim(); });
+    }
+    return r;
+  });
+
+  // build courier list
+  const couriers = [...new Set(allRows.map(r => r.courier).filter(Boolean))];
+  couriers.forEach(c => {
+    const lc = c.toLowerCase();
+    if (!courierUrls[lc]) {
+      for (const [k, v] of Object.entries(COURIER_TEMPLATES)) {
+        if (lc.includes(k) || k.includes(lc)) { courierUrls[lc] = v; break; }
+      }
+    }
+  });
+
+  // update UI
+  document.getElementById('uploadWrap').style.display = 'none';
+  document.getElementById('dashboard').style.display = 'block';
+  document.getElementById('newFileArea').style.display = 'flex';
+  document.getElementById('headerMeta').textContent = filename + ' · ' + allRows.length + ' rows';
+
+  buildCourierPanel(couriers);
+  populateFilters(couriers);
+  renderStats(allRows);
+  renderTable(allRows);
+}
+
+// ── DATE PARSER ───────────────────────────────────────────────────────────────
+function parseIndianDate(s) {
+  if (!s) return null;
+  const months = {jan:0,feb:1,mar:2,apr:3,may:4,jun:5,jul:6,aug:7,sep:8,oct:9,nov:10,dec:11};
+  let m;
+  m = s.match(/^(\d{1,2})[-\/\s]([a-zA-Z]{3})[-\/\s](\d{2,4})$/);
+  if (m) { let y=parseInt(m[3]); if(y<100)y+=2000; return new Date(y,months[m[2].toLowerCase()],parseInt(m[1])); }
+  m = s.match(/^(\d{1,2})[-\/](\d{1,2})[-\/](\d{2,4})$/);
+  if (m) { let y=parseInt(m[3]); if(y<100)y+=2000; return new Date(y,parseInt(m[2])-1,parseInt(m[1])); }
+  m = s.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (m) return new Date(parseInt(m[1]),parseInt(m[2])-1,parseInt(m[3]));
+  return null;
+}
+
+// ── COURIER PANEL ────────────────────────────────────────────────────────────
+function buildCourierPanel(couriers) {
+  const panel = document.getElementById('courierPanel');
+  const cont = document.getElementById('courierRows');
+  if (!couriers.length) { panel.style.display = 'none'; return; }
+  panel.style.display = 'block';
+  cont.innerHTML = '';
+  couriers.forEach(c => {
+    const lc = c.toLowerCase();
+    const val = courierUrls[lc] || Object.entries(COURIER_TEMPLATES).find(([k]) => lc.includes(k))?.[1] || '';
+    const row = document.createElement('div');
+    row.className = 'courier-row';
+    row.innerHTML = `<span class="courier-name">${c}</span><input class="courier-url-input" placeholder="https://…/{awb}" value="${val}" data-courier="${lc}" oninput="courierUrls[this.dataset.courier]=this.value;renderTable(getFiltered())">`;
+    cont.appendChild(row);
+  });
+}
+
+// ── FILTERS ──────────────────────────────────────────────────────────────────
+function populateFilters(couriers) {
+  const cs = document.getElementById('courierFilter');
+  cs.innerHTML = '<option value="">All couriers</option>';
+  couriers.forEach(c => cs.innerHTML += `<option>${c}</option>`);
+
+  const platforms = [...new Set(allRows.map(r => r.platform).filter(Boolean))];
+  const ps = document.getElementById('platformFilter');
+  ps.innerHTML = '<option value="">All platforms</option>';
+  platforms.forEach(p => ps.innerHTML += `<option>${p}</option>`);
+}
+
+function getFiltered() {
+  const search = (document.getElementById('searchBox').value || '').toLowerCase();
+  const statusF = (document.getElementById('statusFilter').value || '').toLowerCase();
+  const courierF = (document.getElementById('courierFilter').value || '').toLowerCase();
+  const platformF = (document.getElementById('platformFilter').value || '').toLowerCase();
+  return allRows.filter(r => {
+    const txt = [r.order_id, r.customer, r.awb, r.status, r.courier, r.item, r.platform, r.live_status].join(' ').toLowerCase();
+    const ms = !search || txt.includes(search);
+    const mst = !statusF || (r.status || '').toLowerCase() === statusF;
+    const mc = !courierF || (r.courier || '').toLowerCase() === courierF;
+    const mp = !platformF || (r.platform || '').toLowerCase() === platformF;
+    return ms && mst && mc && mp;
+  });
+}
+
+function applyFilters() {
+  const filtered = getFiltered();
+  renderStats(filtered);
+  renderTable(filtered);
+}
+
+// ── STATS ─────────────────────────────────────────────────────────────────────
+function renderStats(rows) {
+  const total = rows.length;
+  const count = val => rows.filter(r => (r.status||'').toLowerCase() === val.toLowerCase()).length;
+
+  const delivered   = count('DELIVERED');
+  const pickedup    = count('PICKED UP');
+  const notpickup   = count('NOT PICKUP');
+  const transit     = count('IN TRANSIT');
+  const delay       = count('DELAY');
+  const outDel      = count('Out for delivery');
+  const rtoDel      = count('RTO delivered');
+  const self        = count('Self');
+  const cancelled   = count('canceled');
+  const rtoInit     = count('RTO Initiated');
+  const refunded    = count('Refunded');
+
+  const daysArr = rows.map(r => +r.del_days).filter(d => d > 0 && d < 365);
+  const avg = daysArr.length ? Math.round(daysArr.reduce((a,b)=>a+b,0)/daysArr.length) : '—';
+
+  const active = (document.getElementById('statusFilter').value || '').toLowerCase();
+  const card = (label, val, valClass, count) => {
+    const isActive = active === val.toLowerCase();
+    return `<div class="stat-card" style="cursor:pointer;${isActive?'outline:2px solid #1a1917;outline-offset:2px;':''}" onclick="setStatusFilter('${val}')" title="Filter: ${label}">
+      <div class="stat-label">${label}</div>
+      <div class="stat-val ${valClass}">${count}</div></div>`;
+  };
+
+  document.getElementById('statsRow').innerHTML =
+    `<div class="stat-card" style="cursor:pointer;${!active?'outline:2px solid #1a1917;outline-offset:2px;':''}" onclick="setStatusFilter('')">
+      <div class="stat-label">Total Orders</div><div class="stat-val">${total}</div></div>` +
+    card('Delivered',      'DELIVERED',        'green',  delivered) +
+    card('Picked Up',      'PICKED UP',        'green',  pickedup)  +
+    card('Not Pickup',     'NOT PICKUP',       'red',    notpickup) +
+    card('In Transit',     'IN TRANSIT',       'amber',  transit)   +
+    card('Delay',          'DELAY',            'red',    delay)     +
+    card('Out for Delivery','Out for delivery','',       outDel)    +
+    card('RTO Delivered',  'RTO delivered',    'red',    rtoDel)    +
+    card('Self',           'Self',             '',       self)      +
+    card('Canceled',       'canceled',         'red',    cancelled) +
+    card('RTO Initiated',  'RTO Initiated',    'blue',   rtoInit)   +
+    card('Refunded',       'Refunded',         'purple', refunded)  +
+    `<div class="stat-card"><div class="stat-label">Avg Delivery Days</div><div class="stat-val">${avg}</div></div>`;
+}
+
+function setStatusFilter(val) {
+  document.getElementById('statusFilter').value = val;
+  applyFilters();
+}
+
+// ── TABLE ─────────────────────────────────────────────────────────────────────
+function renderTable(rows) {
+  if (!rows) rows = getFiltered();
+  document.getElementById('rowCount').textContent = rows.length + ' orders';
+
+  // sort
+  if (sortCol) {
+    rows = [...rows].sort((a, b) => {
+      const av = a[sortCol] || '', bv = b[sortCol] || '';
+      return av.localeCompare(bv, undefined, { numeric: true }) * sortDir;
+    });
+  }
+
+  // header
+  const thead = document.getElementById('thead');
+  thead.innerHTML = DISPLAY_COLS.map(c => `<th style="min-width:${c.width}px" data-key="${c.key}" onclick="sortBy('${c.key}')" class="${sortCol===c.key?'sorted':''}">${c.label}<span class="sort-arrow">${sortCol===c.key?(sortDir===1?'↑':'↓'):'↕'}</span></th>`).join('');
+
+  // body
+  const tbody = document.getElementById('tbody');
+  if (!rows.length) {
+    tbody.innerHTML = '<tr><td colspan="' + DISPLAY_COLS.length + '" class="empty-msg">No matching shipments found.</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = rows.map(r => {
+    const rowClass = rowStatusClass(r.status);
+    const cells = DISPLAY_COLS.map(c => {
+      if (c.key === 'status') return `<td>${statusBadge(r.status)}</td>`;
+      if (c.key === 'awb') return `<td class="mono">${r.awb || '—'}</td>`;
+      if (c.key === 'gst') return `<td class="mono" title="${r.gst||''}">${r.gst || '—'}</td>`;
+      if (c.key === 'track') {
+        if (!r.awb) return `<td><span class="no-awb">No AWB</span></td>`;
+        const url = buildLink(r.courier, r.awb);
+        return `<td><a class="track-btn" href="${url}" target="_blank" rel="noopener">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+          Track</a>
+          <button class="copy-link" onclick="copyToClipboard('${url}',event)">
+          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+          Copy</button></td>`;
+      }
+      const v = r[c.key] || '—';
+      return `<td title="${v}">${v}</td>`;
+    });
+    return `<tr class="${rowClass}">${cells.join('')}</tr>`;
+  }).join('');
+}
+
+function statusBadge(s) {
+  if (!s) return '<span class="badge badge-other">—</span>';
+  const lc = s.toLowerCase().trim();
+  if (lc.includes('not pick'))                               return `<span class="badge" style="background:#fde8e8;color:#b91c1c">${s}</span>`;
+  if (lc.includes('picked up') || lc === 'pickup')          return `<span class="badge" style="background:#f2fbe8;color:#3a7d0a">${s}</span>`;
+  if (lc.includes('out for delivery'))                       return `<span class="badge" style="background:#f0f0f0;color:#555">${s}</span>`;
+  if (lc.includes('rto delivered') || lc === 'rto del')     return `<span class="badge" style="background:#fde8e8;color:#b91c1c">${s}</span>`;
+  if (lc.includes('rto init') || lc.includes('rto in'))     return `<span class="badge" style="background:#e8eefe;color:#1e3fa8">${s}</span>`;
+  if (lc.includes('rto') || lc.includes('return'))          return `<span class="badge" style="background:#e8eefe;color:#1e3fa8">${s}</span>`;
+  if (lc.includes('deliver'))                                return `<span class="badge badge-delivered">${s}</span>`;
+  if (lc.includes('in transit') || lc.includes('transit'))  return `<span class="badge" style="background:#fefce6;color:#854d0e">${s}</span>`;
+  if (lc.includes('delay'))                                  return `<span class="badge" style="background:#fde8e8;color:#b91c1c">${s}</span>`;
+  if (lc.includes('cancel'))                                 return `<span class="badge" style="background:#fce8e8;color:#991b1b">${s}</span>`;
+  if (lc.includes('refund'))                                 return `<span class="badge" style="background:#f0e8fc;color:#6b21a8">${s}</span>`;
+  if (lc.includes('self'))                                   return `<span class="badge" style="background:#f0f0f0;color:#555">${s}</span>`;
+  if (lc.includes('pending') || lc.includes('pickup'))      return `<span class="badge badge-pending">${s}</span>`;
+  return `<span class="badge badge-other">${s}</span>`;
+}
+
+function rowStatusClass(s) {
+  if (!s) return '';
+  const lc = s.toLowerCase().trim();
+  if (lc.includes('not pick'))                               return 'row-notpickup';
+  if (lc.includes('picked up') || lc === 'pickup')          return 'row-pickedup';
+  if (lc.includes('out for delivery'))                       return 'row-outdelivery';
+  if (lc.includes('rto delivered') || lc === 'rto del')     return 'row-rtodel';
+  if (lc.includes('rto init') || lc.includes('rto in'))     return 'row-rtoinit';
+  if (lc.includes('rto') || lc.includes('return'))          return 'row-rtoinit';
+  if (lc.includes('deliver'))                                return 'row-delivered';
+  if (lc.includes('in transit') || lc.includes('transit'))  return 'row-transit';
+  if (lc.includes('delay'))                                  return 'row-delay';
+  if (lc.includes('cancel'))                                 return 'row-cancelled';
+  if (lc.includes('refund'))                                 return 'row-refunded';
+  if (lc.includes('self'))                                   return 'row-self';
+  if (lc.includes('pending') || lc.includes('pickup'))      return 'row-pickedup';
+  return '';
+}
+
+function buildLink(courier, awb) {
+  if (!awb) return '#';
+  const lc = (courier || '').toLowerCase();
+  let tpl = courierUrls[lc];
+  if (!tpl) {
+    for (const [k, v] of Object.entries(COURIER_TEMPLATES)) {
+      if (lc.includes(k) || k.includes(lc)) { tpl = v; break; }
+    }
+  }
+  if (tpl) return tpl.replace('{awb}', encodeURIComponent(awb));
+  return `https://www.google.com/search?q=${encodeURIComponent(awb + ' ' + courier + ' tracking')}`;
+}
+
+// ── SORT ──────────────────────────────────────────────────────────────────────
+function sortBy(key) {
+  if (sortCol === key) sortDir *= -1; else { sortCol = key; sortDir = 1; }
+  renderTable();
+}
+
+// ── COPY & TOAST ──────────────────────────────────────────────────────────────
+function copyToClipboard(text, e) {
+  e && e.stopPropagation();
+  navigator.clipboard.writeText(text).catch(() => {
+    const t = document.createElement('textarea');
+    t.value = text; document.body.appendChild(t); t.select(); document.execCommand('copy'); document.body.removeChild(t);
+  });
+  showToast('Link copied!');
+}
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2200);
+}
+
+// ── EXPORT XLSX ────────────────────────────────────────────────────────────────
+function exportCSV() {
+  const rows = getFiltered();
+  if (!rows.length) { alert('No data to export.'); return; }
+
+  // Build worksheet data
+  const headers = [
+    'Shipment Status','Order ID','Order Date','Customer','Platform','Item','Qty',
+    'Courier','AWB No.','Dispatch Date','EDD','Delivered Date','Delivery Days',
+    'Live Status','From State','Place of Supply','Address','Company GST','Note',
+    'Last Updated','Tracking Link'
+  ];
+  const keyMap = [
+    'status','order_id','order_date','customer','platform','item','qty',
+    'courier','awb','dispatch_date','edd','delivered_date','del_days',
+    'live_status','ship_from','place_of_supply','address','gst','note',
+    'last_updated'
+  ];
+
+  const wsData = [headers];
+  rows.forEach(r => {
+    const row = keyMap.map(k => r[k] || '');
+    row.push(buildLink(r.courier, r.awb)); // tracking link as last column
+    wsData.push(row);
+  });
+
+  const wb = XLSX.utils.book_new();
+  const ws = XLSX.utils.aoa_to_sheet(wsData);
+
+  // Style header row & set column widths
+  const colWidths = [18,16,12,20,12,22,5,16,18,12,12,12,8,18,14,16,28,20,18,14,50];
+  ws['!cols'] = colWidths.map(w => ({ wch: w }));
+
+  // Make tracking links actual hyperlinks in the last column (col index 20 = "U")
+  rows.forEach((r, i) => {
+    const cellRef = XLSX.utils.encode_cell({ r: i + 1, c: 20 });
+    const url = buildLink(r.courier, r.awb);
+    if (r.awb && url && url !== '#') {
+      ws[cellRef] = { v: 'Track ' + (r.awb || ''), t: 's', l: { Target: url, Tooltip: 'Click to track shipment' } };
+    }
+  });
+
+  XLSX.utils.book_append_sheet(wb, ws, 'Shipments');
+  XLSX.writeFile(wb, 'shipments_with_links.xlsx');
+  showToast('Excel file downloaded with tracking links!');
+}
+
+setupDropZone();
+</script>
+</body>
+</html>
